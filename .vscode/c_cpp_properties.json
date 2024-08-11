@@ -1,0 +1,25 @@
+{
+    "configurations": [
+        {
+            "name": "DevkitPro Aarch64 Linux",
+            "includePath": [
+                "/opt/devkitpro/devkitA64/aarch64-none-elf/include",
+                "/opt/devkitpro/devkitA64/lib/gcc/aarch64-none-elf/*/include",
+                "/opt/devkitpro/devkitA64/lib/gcc/aarch64-none-elf/*/include-fixed",
+                "/opt/devkitpro/libnx/include"
+            ],
+            "defines": [
+                "SWITCH",
+                "__SWITCH__",
+                "__aarch64__",
+                "ATMOSPHER_OS_HORIZON"
+            ],
+            "compilerPath": "/opt/devkitpro/devkitA64/bin/aarch64-none-elf-gcc",
+            "cStandard": "c11",
+            "cppStandard": "c++20",
+            "intelliSenseMode": "gcc-arm64",
+            "configurationProvider": "ms-vscode.makefile-tools"
+        }
+    ],
+    "version": 4
+}

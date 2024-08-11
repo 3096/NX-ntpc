@@ -1,0 +1,14 @@
+{
+    "files.associations": {
+        "ntp.h": "c",
+        "switch.h": "c",
+        "counter.h": "c",
+        "nro.h": "c",
+        "fatal.h": "c",
+        "time.h": "c",
+        "usbhs.h": "c",
+        "hidbus.h": "c",
+        "hid.h": "c",
+        "usbds.h": "c"
+    }
+}

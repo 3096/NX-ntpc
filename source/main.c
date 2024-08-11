@@ -22,8 +22,6 @@ For more information, please refer to <https://unlicense.org> */
 
 #include "ntp.h"
 
-PadState pad;
-
 bool setsysInternetTimeSyncIsOn() {
     Result rs = setsysInitialize();
     if (R_FAILED(rs)) {
@@ -86,12 +84,12 @@ bool setNetworkSystemClock(time_t time) {
     return true;
 }
 
-int consoleExitWithMsg(char* msg) {
+int consoleExitWithMsg(char* msg, PadState* pad) {
     printf("%s\n\nPress + to quit...", msg);
 
     while (appletMainLoop()) {
-        padUpdate(&pad);
-        u64 kDown = padGetButtonsDown(&pad);
+        padUpdate(pad);
+        u64 kDown = padGetButtonsDown(pad);
 
         if (kDown & HidNpadButton_Plus) {
             consoleExit(NULL);
@@ -104,7 +102,7 @@ int consoleExitWithMsg(char* msg) {
     return 0;
 }
 
-bool toggleHBMenuPath(char* curPath) {
+bool toggleHBMenuPath(char* curPath, PadState* pad) {
     const char* HB_MENU_NRO_PATH = "sdmc:/hbmenu.nro";
     const char* HB_MENU_BAK_PATH = "sdmc:/hbmenu.nro.bak";
     const char* DEFAULT_RESTORE_PATH = "sdmc:/switch/switch-time.nro";
@@ -117,20 +115,20 @@ bool toggleHBMenuPath(char* curPath) {
         rs = access(HB_MENU_BAK_PATH, F_OK);
         if (R_FAILED(rs)) {
             printf("could not find %s to restore. failed: 0x%x", HB_MENU_BAK_PATH, rs);
-            consoleExitWithMsg("");
+            consoleExitWithMsg("", pad);
             return false;
         }
 
         rs = rename(curPath, DEFAULT_RESTORE_PATH);
         if (R_FAILED(rs)) {
             printf("fsFsRenameFile(%s, %s) failed: 0x%x", curPath, DEFAULT_RESTORE_PATH, rs);
-            consoleExitWithMsg("");
+            consoleExitWithMsg("", pad);
             return false;
         }
         rs = rename(HB_MENU_BAK_PATH, HB_MENU_NRO_PATH);
         if (R_FAILED(rs)) {
             printf("fsFsRenameFile(%s, %s) failed: 0x%x", HB_MENU_BAK_PATH, HB_MENU_NRO_PATH, rs);
-            consoleExitWithMsg("");
+            consoleExitWithMsg("", pad);
             return false;
         }
     } else {
@@ -138,14 +136,14 @@ bool toggleHBMenuPath(char* curPath) {
         rs = rename(HB_MENU_NRO_PATH, HB_MENU_BAK_PATH);
         if (R_FAILED(rs)) {
             printf("fsFsRenameFile(%s, %s) failed: 0x%x", HB_MENU_NRO_PATH, HB_MENU_BAK_PATH, rs);
-            consoleExitWithMsg("");
+            consoleExitWithMsg("", pad);
             return false;
         }
         rs = rename(curPath, HB_MENU_NRO_PATH);
         if (R_FAILED(rs)) {
             printf("fsFsRenameFile(%s, %s) failed: 0x%x", curPath, HB_MENU_NRO_PATH, rs);
             rename(HB_MENU_BAK_PATH, HB_MENU_NRO_PATH);  // hbmenu already moved, try to move it back
-            consoleExitWithMsg("");
+            consoleExitWithMsg("", pad);
             return false;
         }
     }
@@ -157,9 +155,11 @@ bool toggleHBMenuPath(char* curPath) {
 
 int main(int argc, char* argv[]) {
     consoleInit(NULL);
-    padConfigureInput(8, HidNpadStyleSet_NpadStandard);
-    padInitializeAny(&pad);
     printf("SwitchTime v0.1.3\n\n");
+
+    padConfigureInput(8, HidNpadStyleSet_NpadStandard);
+    PadState pad;
+    padInitializeAny(&pad);
 
     if (!setsysInternetTimeSyncIsOn()) {
         // printf("Trying setsysSetUserSystemClockAutomaticCorrectionEnabled...\n");
@@ -167,7 +167,7 @@ int main(int argc, char* argv[]) {
         //     return consoleExitWithMsg("Internet time sync is not enabled. Please enable it in System Settings.");
         // }
         // doesn't work without rebooting? not worth it
-        return consoleExitWithMsg("Internet time sync is not enabled. Please enable it in System Settings.");
+        return consoleExitWithMsg("Internet time sync is not enabled. Please enable it in System Settings.", &pad);
     }
 
     // Main loop
@@ -175,12 +175,12 @@ int main(int argc, char* argv[]) {
         printf(
             "\n\n"
             "Press:\n\n"
-            "UP/DOWN to change hour | LEFT/RIGHT to change day | R/ZR to change year\n"
+            "UP/DOWN to change hour | LEFT/RIGHT to change day | X/B to 10 minutes\n"
             "L/ZL to change month   | R/ZR to change year\n"
             "A to confirm time      | Y to reset to current time (Cloudflare time server)\n"
             "                       | + to quit\n\n\n");
 
-        int dayChange = 0, hourChange = 0, monthChange = 0,yearsChange = 0;
+        int yearsChange = 0, monthChange = 0, dayChange = 0, hourChange = 0, tenMinChange = 0;
         while (appletMainLoop()) {
             padUpdate(&pad);
             u64 kDown = padGetButtonsDown(&pad);
@@ -190,7 +190,7 @@ int main(int argc, char* argv[]) {
                 return 0;  // return to hbmenu
             }
             if (kDown & HidNpadButton_Minus) {
-                if (!toggleHBMenuPath(argv[0])) {
+                if (!toggleHBMenuPath(argv[0], &pad)) {
                     return 0;
                 }
             }
@@ -199,7 +199,7 @@ int main(int argc, char* argv[]) {
             Result rs = timeGetCurrentTime(TimeType_UserSystemClock, (u64*)&currentTime);
             if (R_FAILED(rs)) {
                 printf("timeGetCurrentTime failed with %x", rs);
-                return consoleExitWithMsg("");
+                return consoleExitWithMsg("", &pad);
             }
 
             struct tm* p_tm_timeToSet = localtime(&currentTime);
@@ -207,7 +207,7 @@ int main(int argc, char* argv[]) {
             p_tm_timeToSet->tm_mon += monthChange;
             p_tm_timeToSet->tm_mday += dayChange;
             p_tm_timeToSet->tm_hour += hourChange;
-
+            p_tm_timeToSet->tm_min += tenMinChange * 10;
             time_t timeToSet = mktime(p_tm_timeToSet);
 
             if (kDown & HidNpadButton_A) {
@@ -241,6 +241,10 @@ int main(int argc, char* argv[]) {
                 monthChange--;
             } else if (kDown & HidNpadButton_ZL) {
                 monthChange++;
+            } else if (kDown & HidNpadButton_B) {
+                tenMinChange--;
+            } else if (kDown & HidNpadButton_X) {
+                tenMinChange++;
             }
 
             char timeToSetStr[25];
