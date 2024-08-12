@@ -46,7 +46,7 @@ INCLUDES	:=	include
 
 VERSION_MAJOR := 0
 VERSION_MINOR := 1
-VERSION_MICRO := 4
+VERSION_MICRO := 5
 
 APP_TITLE   := SwitchTime
 APP_AUTHOR  := 3096, thedax, cytraen, vonhabsbourg, izenn
